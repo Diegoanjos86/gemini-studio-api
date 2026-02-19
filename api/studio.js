@@ -4,33 +4,58 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // ✅ Preflight (browser exige)
+  // ✅ Preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // ✅ Só aceitamos POST
+  // ✅ GET só para teste
+  if (req.method === "GET") {
+    return res.status(200).json({
+      ok: true,
+      message: "API studio viva. Use POST para gerar."
+    });
+  }
+
+  // ✅ Só POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST allowed" });
   }
 
   try {
-    const { imageBase64, finalPrompt } = req.body;
+    // ✅ Garantir que body existe
+    let body = req.body;
 
-    if (!imageBase64 || !finalPrompt) {
+    // Caso venha como string
+    if (typeof body === "string") {
+      body = JSON.parse(body);
+    }
+
+    if (!body) {
       return res.status(400).json({
-        error: "Missing imageBase64 or finalPrompt"
+        error: "Body vazio ou não parseado"
       });
     }
 
-    // ✅ Resposta dummy (ainda sem Gemini)
+    const { imageBase64, finalPrompt } = body;
+
+    if (!imageBase64 || !finalPrompt) {
+      return res.status(400).json({
+        error: "Campos ausentes",
+        received: body
+      });
+    }
+
+    // ✅ Dummy response
     return res.status(200).json({
       ok: true,
-      receivedPrompt: finalPrompt.slice(0, 80),
-      imageSize: imageBase64.length
+      promptPreview: finalPrompt.slice(0, 60),
+      imageLength: imageBase64.length
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      error: "Crash no handler",
+      details: err.message
+    });
   }
 }
-`
