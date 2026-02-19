@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   // --- HEADERS CORS ---
-  res.setHeader("Access-Control-Allow-Origin", "*"); // Pode colocar o domínio Lovable para mais segurança
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -23,11 +23,12 @@ export default async function handler(req, res) {
     try {
       const { finalPrompt, imageBase64, imageSize } = req.body;
 
-      // Validação simples
+      // Validação mínima
       if (!finalPrompt || !imageBase64) {
-        return res
-          .status(400)
-          .json({ ok: false, error: "Faltando finalPrompt ou imageBase64" });
+        return res.status(400).json({
+          ok: false,
+          error: "Faltando finalPrompt ou imageBase64"
+        });
       }
 
       const apiKey = process.env.GEMINI_API_KEY;
@@ -37,7 +38,9 @@ export default async function handler(req, res) {
       // --- Payload para Gemini ---
       const payload = {
         prompt: finalPrompt,
-        image: imageBase64,
+        image: imageBase64.startsWith("data:image/")
+          ? imageBase64
+          : `data:image/png;base64,${imageBase64}`,
         ...(imageSize && { size: imageSize })
       };
 
