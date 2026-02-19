@@ -12,6 +12,7 @@ export default async function handler(req, res) {
 
   // --- GET para teste ---
   if (req.method === "GET") {
+    console.log("📥 GET recebido");
     return res.status(200).json({
       ok: true,
       message: "API studio viva. Use POST para gerar imagem e copy."
@@ -21,10 +22,13 @@ export default async function handler(req, res) {
   // --- POST para gerar imagem/comercial ---
   if (req.method === "POST") {
     try {
+      console.log("📥 Request body:", req.body);
+
       const { finalPrompt, imageBase64, imageSize } = req.body;
 
       // Validação mínima
       if (!finalPrompt || !imageBase64) {
+        console.error("❌ Faltando finalPrompt ou imageBase64");
         return res.status(400).json({
           ok: false,
           error: "Faltando finalPrompt ou imageBase64"
@@ -32,8 +36,7 @@ export default async function handler(req, res) {
       }
 
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey)
-        throw new Error("GEMINI_API_KEY não configurada no Vercel");
+      if (!apiKey) throw new Error("GEMINI_API_KEY não configurada no Vercel");
 
       // --- Payload para Gemini ---
       const payload = {
@@ -43,6 +46,8 @@ export default async function handler(req, res) {
           : `data:image/png;base64,${imageBase64}`,
         ...(imageSize && { size: imageSize })
       };
+
+      console.log("📤 Payload enviado ao Gemini:", payload);
 
       // --- Chamada à API Gemini ---
       const response = await fetch("https://api.gemini.com/v1/generate", {
@@ -56,10 +61,12 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const text = await response.text();
+        console.error("❌ Erro da Gemini:", text);
         return res.status(response.status).json({ ok: false, error: text });
       }
 
       const data = await response.json();
+      console.log("📥 Resposta do Gemini:", data);
 
       // --- Retorno para Lovable ---
       return res.status(200).json({
@@ -69,7 +76,7 @@ export default async function handler(req, res) {
       });
 
     } catch (err) {
-      console.error(err);
+      console.error("❌ Erro interno:", err);
       return res.status(500).json({ ok: false, error: err.message });
     }
   }
