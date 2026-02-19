@@ -1,61 +1,67 @@
+// api/studio.js
+import fetch from 'node-fetch';
+
 export default async function handler(req, res) {
-  // ✅ CORS completo
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Permitir CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // ✅ Preflight
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end(); // Preflight CORS
   }
 
-  // ✅ GET só para teste
-  if (req.method === "GET") {
-    return res.status(200).json({
-      ok: true,
-      message: "API studio viva. Use POST para gerar."
-    });
+  if (req.method === 'GET') {
+    return res.status(200).json({ ok: true, message: 'API studio viva. Use POST para gerar.' });
   }
 
-  // ✅ Só POST
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST allowed" });
-  }
+  if (req.method === 'POST') {
+    try {
+      const { finalPrompt, imageBase64 } = req.body;
 
-  try {
-    // ✅ Garantir que body existe
-    let body = req.body;
+      if (!finalPrompt || !imageBase64) {
+        return res.status(400).json({ ok: false, error: 'Faltando finalPrompt ou imageBase64' });
+      }
 
-    // Caso venha como string
-    if (typeof body === "string") {
-      body = JSON.parse(body);
-    }
+      const apiKey = process.env.GEMINI_API_KEY; // Pega do Vercel
+      if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
-    if (!body) {
-      return res.status(400).json({
-        error: "Body vazio ou não parseado"
+      // Chamada ao Gemini (exemplo genérico, ajuste conforme API real)
+      const response = await fetch('https://api.gemini.com/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: finalPrompt,
+          image: imageBase64,
+          // você pode adicionar outros parâmetros que o Gemini aceitar
+        }),
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        return res.status(response.status).json({ ok: false, error: text });
+      }
+
+      const data = await response.json();
+
+      // Supondo que o Gemini retorne { imageBase64: "...", copy: "..." }
+      const result = {
+        ok: true,
+        generatedImage: data.imageBase64 || null,
+        copy: data.copy || null,
+      };
+
+      return res.status(200).json(result);
+
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ ok: false, error: err.message });
     }
-
-    const { imageBase64, finalPrompt } = body;
-
-    if (!imageBase64 || !finalPrompt) {
-      return res.status(400).json({
-        error: "Campos ausentes",
-        received: body
-      });
-    }
-
-    // ✅ Dummy response
-    return res.status(200).json({
-      ok: true,
-      promptPreview: finalPrompt.slice(0, 60),
-      imageLength: imageBase64.length
-    });
-  } catch (err) {
-    return res.status(500).json({
-      error: "Crash no handler",
-      details: err.message
-    });
   }
+
+  // Método não permitido
+  return res.status(405).json({ ok: false, error: 'Método não permitido' });
 }
